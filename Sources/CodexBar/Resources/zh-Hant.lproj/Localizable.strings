@@ -230,6 +230,13 @@
 "Menu content" = "選單內容";
 "Merge Icons" = "合併圖示";
 "Never prompt" = "永不提示";
+"Import ai-router Accounts" = "匯入 ai-router 帳號";
+"Imported %d ai-router Codex accounts." = "已從 ai-router 匯入 %d 個 Codex 帳號。";
+"Imported 1 ai-router Codex account." = "已從 ai-router 匯入 1 個 Codex 帳號。";
+"Importing ai-router…" = "正在從 ai-router 匯入…";
+"No ai-router Codex accounts found." = "找不到 ai-router Codex 帳號。";
+"No readable ai-router Codex accounts found." = "找不到可讀取的 ai-router Codex 帳號。";
+
 "No" = "否";
 "No Codex accounts detected yet." = "未偵測到 Codex 帳號。";
 "No JetBrains IDE detected" = "未偵測到 JetBrains IDE";

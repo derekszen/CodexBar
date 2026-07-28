@@ -99,6 +99,11 @@ struct ProvidersPane: View {
                             Task { @MainActor in
                                 await self.addManagedCodexAccount()
                             }
+                        },
+                        importAIRouterAccounts: {
+                            Task { @MainActor in
+                                await self.importAIRouterCodexAccounts()
+                            }
                         })
                 }
             })
@@ -244,6 +249,7 @@ struct ProvidersPane: View {
             isAuthenticatingManagedAccount: self.managedCodexAccountCoordinator.isAuthenticatingManagedAccount,
             authenticatingManagedAccountID: self.managedCodexAccountCoordinator.authenticatingManagedAccountID,
             isRemovingManagedAccount: self.managedCodexAccountCoordinator.isRemovingManagedAccount,
+            isImportingAIRouterAccounts: self.managedCodexAccountCoordinator.isImportingAIRouterAccounts,
             isAuthenticatingLiveAccount: self.isAuthenticatingLiveCodexAccount,
             isPromotingSystemAccount: self.codexAccountPromotionCoordinator.isPromotingSystemAccount,
             notice: self.codexAccountsNotice ?? degradedNotice)
@@ -279,6 +285,27 @@ struct ProvidersPane: View {
             let account = try await self.managedCodexAccountCoordinator.authenticateManagedAccount()
             self.selectCodexVisibleAccountForAuthenticatedManagedAccount(account)
             await self.refreshCodexProvider()
+        } catch {
+            self.codexAccountsNotice = self.codexAccountsNotice(for: error)
+        }
+    }
+
+    func importAIRouterCodexAccounts() async {
+        self.codexAccountsNotice = nil
+        guard let state = self.codexAccountsSectionState(for: .codex), state.canImportAIRouterAccounts else {
+            return
+        }
+
+        do {
+            let result = try await self.managedCodexAccountCoordinator.importAIRouterCodexAccounts()
+            _ = self.settings.refreshCodexAccountReconciliationAfterManagedAccountsDidChange()
+            if let preferredAccount = result.preferredAccount {
+                self.selectCodexVisibleAccountForAuthenticatedManagedAccount(preferredAccount)
+            }
+            self.codexAccountsNotice = self.codexAccountsNotice(forAIRouterImportResult: result)
+            if result.affectedCount > 0 {
+                await self.refreshCodexProvider()
+            }
         } catch {
             self.codexAccountsNotice = self.codexAccountsNotice(for: error)
         }
@@ -648,6 +675,23 @@ struct ProvidersPane: View {
         return CodexAccountsSectionNotice(
             text: error.localizedDescription,
             tone: .warning)
+    }
+
+    private func codexAccountsNotice(
+        forAIRouterImportResult result: ManagedCodexAIRouterImportResult) -> CodexAccountsSectionNotice
+    {
+        if result.affectedCount == 1 {
+            return CodexAccountsSectionNotice(text: L("Imported 1 ai-router Codex account."), tone: .secondary)
+        }
+        if result.affectedCount > 1 {
+            return CodexAccountsSectionNotice(
+                text: L("Imported %d ai-router Codex accounts.", result.affectedCount),
+                tone: .secondary)
+        }
+        let text = result.scannedFileCount == 0
+            ? L("No ai-router Codex accounts found.")
+            : L("No readable ai-router Codex accounts found.")
+        return CodexAccountsSectionNotice(text: text, tone: .secondary)
     }
 
     private func presentLoginAlert(title: String, message: String) {

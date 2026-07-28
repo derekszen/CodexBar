@@ -210,6 +210,13 @@
 "Menu content" = "محتوای منو";
 "Merge Icons" = "آیکون های ادغام";
 "Never prompt" = "هرگز پرامپت نکنید";
+"Import ai-router Accounts" = "وارد کردن حساب‌های ai-router";
+"Imported %d ai-router Codex accounts." = "%d حساب Codex از ai-router وارد شد.";
+"Imported 1 ai-router Codex account." = "1 حساب Codex از ai-router وارد شد.";
+"Importing ai-router…" = "در حال وارد کردن از ai-router…";
+"No ai-router Codex accounts found." = "هیچ حساب Codex در ai-router پیدا نشد.";
+"No readable ai-router Codex accounts found." = "هیچ حساب Codex خوانایی در ai-router پیدا نشد.";
+
 "No" = "نه";
 "No Codex accounts detected yet." = "هنوز حساب Codex شناسایی نشده است.";
 "No JetBrains IDE detected" = "هیچ JetBrains IDE ای شناسایی نشد.";

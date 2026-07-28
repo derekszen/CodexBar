@@ -41,6 +41,22 @@ enum ManagedCodexAccountServiceError: Error, Equatable {
     case unsafeManagedHome(String)
 }
 
+struct ManagedCodexAIRouterImportResult {
+    let scannedFileCount: Int
+    let skippedFileCount: Int
+    let importedAccounts: [ManagedCodexAccount]
+    let updatedAccounts: [ManagedCodexAccount]
+    let preferredAccount: ManagedCodexAccount?
+
+    var affectedAccounts: [ManagedCodexAccount] {
+        self.importedAccounts + self.updatedAccounts
+    }
+
+    var affectedCount: Int {
+        self.importedAccounts.count + self.updatedAccounts.count
+    }
+}
+
 extension ManagedCodexAccountServiceError {
     var userFacingMessage: String {
         switch self {
@@ -340,6 +356,133 @@ final class ManagedCodexAccountService {
         }
     }
 
+    func importAIRouterCodexAccounts(
+        authDirectory: URL? = nil,
+        disabledAuthDirectory: URL? = nil) async throws
+        -> ManagedCodexAIRouterImportResult
+    {
+        let resolvedAuthDirectory = authDirectory ?? Self.defaultAIRouterAuthDirectory(
+            fileManager: self.fileManager)
+        let resolvedDisabledDirectory = disabledAuthDirectory ?? Self.defaultAIRouterDisabledAuthDirectory(
+            authDirectory: resolvedAuthDirectory)
+        let candidates = self.aiRouterCodexAuthFileURLs(
+            authDirectory: resolvedAuthDirectory,
+            disabledAuthDirectory: resolvedDisabledDirectory)
+
+        let initialSnapshot = try self.store.loadAccounts()
+        var accounts = initialSnapshot.accounts
+        var skippedFileCount = 0
+        var importedAccounts: [ManagedCodexAccount] = []
+        var updatedAccounts: [ManagedCodexAccount] = []
+        var preferredAccount: ManagedCodexAccount?
+        var newHomePaths: [String] = []
+        var replacedHomePaths: [String] = []
+
+        do {
+            for candidate in candidates {
+                guard let rawData = try? Data(contentsOf: candidate),
+                      let credentials = try? CodexOAuthCredentialsStore.parse(data: rawData),
+                      !credentials.refreshToken.isEmpty
+                else {
+                    skippedFileCount += 1
+                    continue
+                }
+
+                let homeURL = self.homeFactory.makeHomeURL()
+                try self.fileManager.createDirectory(at: homeURL, withIntermediateDirectories: true)
+                newHomePaths.append(homeURL.path)
+                try CodexOAuthCredentialsStore.save(credentials, env: ["CODEX_HOME": homeURL.path])
+
+                let identity = try self.identityReader.loadAccountIdentity(homePath: homeURL.path)
+                guard let rawEmail = Self.importedEmail(identity: identity, authFileURL: candidate) else {
+                    skippedFileCount += 1
+                    try? self.removeManagedHomeIfSafe(atPath: homeURL.path)
+                    continue
+                }
+
+                let authenticatedProviderAccountID = Self.importedProviderAccountID(
+                    identity: identity,
+                    credentials: credentials)
+                let currentSnapshot = ManagedCodexAccountSet(
+                    version: initialSnapshot.version,
+                    accounts: accounts)
+                let workspaceIdentity = await self.resolvedWorkspaceIdentity(
+                    homePath: homeURL.path,
+                    providerAccountID: authenticatedProviderAccountID)
+                let existing = self.reconciledExistingAccount(
+                    authenticatedEmail: rawEmail,
+                    providerAccountID: authenticatedProviderAccountID,
+                    existingAccountID: nil,
+                    snapshot: currentSnapshot)
+                let persistedMetadata = self.persistedProviderMetadata(
+                    authenticatedProviderAccountID: authenticatedProviderAccountID,
+                    resolvedWorkspaceIdentity: workspaceIdentity,
+                    existingAccount: existing)
+
+                let now = Date().timeIntervalSince1970
+                let account = ManagedCodexAccount(
+                    id: existing?.id ?? UUID(),
+                    email: rawEmail,
+                    providerAccountID: persistedMetadata.providerAccountID,
+                    workspaceLabel: persistedMetadata.workspaceLabel,
+                    workspaceAccountID: persistedMetadata.workspaceAccountID,
+                    authFingerprint: CodexAuthFingerprint.fingerprint(data: rawData),
+                    externalAuthFilePath: candidate.standardizedFileURL.path,
+                    managedHomePath: homeURL.path,
+                    createdAt: existing?.createdAt ?? now,
+                    updatedAt: now,
+                    lastAuthenticatedAt: now)
+                if candidate.deletingLastPathComponent().standardizedFileURL ==
+                    resolvedAuthDirectory.standardizedFileURL
+                {
+                    preferredAccount = account
+                }
+                let replacedAccountIDs = self.replacedAccountIDs(
+                    authenticatedEmail: rawEmail,
+                    providerAccountID: authenticatedProviderAccountID,
+                    existingAccountID: nil,
+                    matchedAccountID: existing?.id,
+                    snapshot: currentSnapshot)
+
+                replacedHomePaths.append(contentsOf: accounts
+                    .filter { replacedAccountIDs.contains($0.id) }
+                    .map(\.managedHomePath))
+                let replacesAccountImportedInThisRun = importedAccounts.contains { replacedAccountIDs.contains($0.id) }
+                importedAccounts.removeAll { replacedAccountIDs.contains($0.id) }
+                updatedAccounts.removeAll { replacedAccountIDs.contains($0.id) }
+                accounts = accounts.filter { replacedAccountIDs.contains($0.id) == false } + [account]
+                if existing == nil || replacesAccountImportedInThisRun {
+                    importedAccounts.append(account)
+                } else {
+                    updatedAccounts.append(account)
+                }
+            }
+
+            if !importedAccounts.isEmpty || !updatedAccounts.isEmpty {
+                try self.store.storeAccounts(ManagedCodexAccountSet(
+                    version: initialSnapshot.version,
+                    accounts: accounts))
+            }
+        } catch {
+            for path in newHomePaths {
+                try? self.removeManagedHomeIfSafe(atPath: path)
+            }
+            throw error
+        }
+
+        let importedHomePaths = Set((importedAccounts + updatedAccounts).map(\.managedHomePath))
+        for path in replacedHomePaths where !importedHomePaths.contains(path) {
+            try? self.removeManagedHomeIfSafe(atPath: path)
+        }
+
+        return ManagedCodexAIRouterImportResult(
+            scannedFileCount: candidates.count,
+            skippedFileCount: skippedFileCount,
+            importedAccounts: importedAccounts,
+            updatedAccounts: updatedAccounts,
+            preferredAccount: preferredAccount)
+    }
+
     private func removeManagedHomeIfSafe(atPath path: String) throws {
         let homeURL = URL(fileURLWithPath: path, isDirectory: true)
         try self.homeFactory.validateManagedHomeForDeletion(homeURL)
@@ -464,6 +607,81 @@ final class ManagedCodexAccountService {
 
     private static func normalizeEmail(_ email: String) -> String {
         email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    private static func defaultAIRouterAuthDirectory(fileManager: FileManager) -> URL {
+        fileManager.homeDirectoryForCurrentUser
+            .appendingPathComponent(".local", isDirectory: true)
+            .appendingPathComponent("share", isDirectory: true)
+            .appendingPathComponent("ai-router", isDirectory: true)
+            .appendingPathComponent("auths", isDirectory: true)
+    }
+
+    private static func defaultAIRouterDisabledAuthDirectory(authDirectory: URL) -> URL {
+        URL(fileURLWithPath: authDirectory.path + ".disabled", isDirectory: true)
+    }
+
+    private func aiRouterCodexAuthFileURLs(authDirectory: URL, disabledAuthDirectory: URL) -> [URL] {
+        var seen: Set<String> = []
+        return [authDirectory, disabledAuthDirectory]
+            .flatMap { self.codexAuthFiles(in: $0) }
+            .filter { url in
+                let path = url.standardizedFileURL.path
+                return seen.insert(path).inserted
+            }
+    }
+
+    private func codexAuthFiles(in directory: URL) -> [URL] {
+        guard let children = try? self.fileManager.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles])
+        else {
+            return []
+        }
+
+        return children.filter { url in
+            let name = url.lastPathComponent
+            guard name.hasPrefix("codex-"), url.pathExtension == "json" else { return false }
+            let values = try? url.resourceValues(forKeys: [.isRegularFileKey])
+            return values?.isRegularFile ?? true
+        }.sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+    }
+
+    private static func importedEmail(identity: CodexAuthBackedAccount, authFileURL: URL) -> String? {
+        if let email = self.normalizeImportedEmail(identity.email) {
+            return email
+        }
+        return self.inferredAIRouterEmail(from: authFileURL)
+    }
+
+    private static func normalizeImportedEmail(_ email: String?) -> String? {
+        guard let normalized = CodexIdentityResolver.normalizeEmail(email) else { return nil }
+        return normalized
+    }
+
+    private static func inferredAIRouterEmail(from authFileURL: URL) -> String? {
+        var stem = authFileURL.deletingPathExtension().lastPathComponent
+        if stem.hasPrefix("codex-") {
+            stem.removeFirst("codex-".count)
+        }
+        if let lastDash = stem.lastIndex(of: "-"), stem[..<lastDash].contains(where: { $0 == "@" }) {
+            stem = String(stem[..<lastDash])
+        }
+        guard stem.contains("@") else { return nil }
+        return self.normalizeImportedEmail(stem)
+    }
+
+    private static func importedProviderAccountID(
+        identity: CodexAuthBackedAccount,
+        credentials: CodexOAuthCredentials) -> String?
+    {
+        switch identity.identity {
+        case let .providerAccount(id):
+            ManagedCodexAccount.normalizeProviderAccountID(id)
+        case .emailOnly, .unresolved:
+            ManagedCodexAccount.normalizeProviderAccountID(credentials.accountId)
+        }
     }
 
     private func persistedProviderMetadata(

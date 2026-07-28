@@ -402,7 +402,7 @@ extension UsageStore {
 
     private func codexManagedAccountIDsWithReadableAuth() -> Set<UUID> {
         Set(self.settings.codexAccountReconciliationSnapshot.storedAccounts.compactMap { account in
-            CodexAuthFingerprint.fingerprint(homePath: account.managedHomePath) == nil ? nil : account.id
+            CodexManagedAccountAuth.fingerprint(for: account) == nil ? nil : account.id
         })
     }
 
@@ -419,7 +419,7 @@ extension UsageStore {
                 case .emailOnly, .unresolved:
                     nil
                 }
-                let authFingerprint = CodexAuthFingerprint.fingerprint(homePath: account.managedHomePath)
+                let authFingerprint = CodexManagedAccountAuth.fingerprint(for: account)
                 let requiresLiveAuth = accountIDs.contains(account.id)
                 return (account.id, CodexManagedVisibleAccountRuntimeState(
                     authFingerprint: authFingerprint ?? (requiresLiveAuth ? nil : account.authFingerprint),

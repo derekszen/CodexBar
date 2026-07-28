@@ -225,6 +225,13 @@
 "Menu content" = "Nội dung menu";
 "Merge Icons" = "Hợp nhất các biểu tượng";
 "Never prompt" = "Không bao giờ nhắc";
+"Import ai-router Accounts" = "Nhập tài khoản ai-router";
+"Imported %d ai-router Codex accounts." = "Đã nhập %d tài khoản Codex từ ai-router.";
+"Imported 1 ai-router Codex account." = "Đã nhập 1 tài khoản Codex từ ai-router.";
+"Importing ai-router…" = "Đang nhập từ ai-router…";
+"No ai-router Codex accounts found." = "Không tìm thấy tài khoản Codex nào trong ai-router.";
+"No readable ai-router Codex accounts found." = "Không tìm thấy tài khoản Codex nào có thể đọc trong ai-router.";
+
 "No" = "Không có";
 "No Codex accounts detected yet." = "Chưa phát hiện thấy tài khoản Codex nào.";
 "No JetBrains IDE detected" = "Không phát hiện thấy JetBrains IDE";

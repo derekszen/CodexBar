@@ -159,8 +159,11 @@ struct ProviderRegistry {
         // Provider-specific by design: managed Codex account selection scopes the fetcher's CODEX_HOME.
         if provider == .codex {
             let codexActiveSource = codexActiveSourceOverride ?? settings.codexResolvedActiveSource
-            if let managedHomePath = settings.managedCodexRemoteHomePath(forActiveSource: codexActiveSource) {
-                env = CodexHomeScope.scopedEnvironment(base: env, codexHome: managedHomePath)
+            if let managedEnvironment = settings.managedCodexEnvironment(
+                base: env,
+                forActiveSource: codexActiveSource)
+            {
+                env = managedEnvironment
             } else if let liveHomePath = settings.liveSystemCodexHomePath(forActiveSource: codexActiveSource) {
                 env = CodexHomeScope.scopedEnvironment(base: env, codexHome: liveHomePath)
             } else if let profileHomePath = settings.profileCodexHomePath(forActiveSource: codexActiveSource) {

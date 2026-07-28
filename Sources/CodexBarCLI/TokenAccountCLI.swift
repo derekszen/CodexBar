@@ -149,11 +149,10 @@ struct TokenAccountCLIContext {
             provider: provider,
             config: providerConfig,
             selectedAccount: account)
-        // Provider-specific by design: managed Codex accounts select a distinct filesystem home, not a credential.
-        if provider == .codex,
-           let codexHomePath = self.codexHomePath(for: codexActiveSourceOverride)
-        {
-            env = CodexHomeScope.scopedEnvironment(base: env, codexHome: codexHomePath)
+        // Provider-specific by design: managed Codex accounts select a distinct filesystem home
+        // and optional external auth file.
+        if provider == .codex {
+            env = self.codexEnvironment(base: env, activeSourceOverride: codexActiveSourceOverride)
         }
         return env
     }
@@ -285,12 +284,15 @@ struct TokenAccountCLIContext {
             baseEnvironment: self.baseEnvironment,
             profileHomePaths: self.providerConfig(for: .codex)?.codexProfileHomePaths ?? [],
             managedEnvironmentBuilder: { environment, account in
-                CodexHomeScope.scopedEnvironment(base: environment, codexHome: account.managedHomePath)
+                CodexManagedAccountAuth.environment(base: environment, account: account)
             })
     }
 
-    private func codexHomePath(for activeSourceOverride: CodexActiveSource?) -> String? {
-        // Provider-specific by design: Codex profile selection changes the local data root for the whole fetcher.
+    private func codexEnvironment(
+        base: [String: String],
+        activeSourceOverride: CodexActiveSource?) -> [String: String]
+    {
+        // Provider-specific by design: Codex profile selection changes auth and filesystem scope for the whole fetcher.
         let activeSource: CodexActiveSource = if let activeSourceOverride {
             activeSourceOverride
         } else {
@@ -300,20 +302,28 @@ struct TokenAccountCLIContext {
 
         switch activeSource {
         case .liveSystem:
-            return nil
+            return base
         case let .managedAccount(id):
             let accounts: ManagedCodexAccountSet? = if let managedCodexAccountStoreURL {
                 try? FileManagedCodexAccountStore(fileURL: managedCodexAccountStoreURL).loadAccounts()
             } else {
                 try? FileManagedCodexAccountStore().loadAccounts()
             }
-            return accounts?.account(id: id)?.managedHomePath
+            guard let account = accounts?.account(id: id) else {
+                return CodexHomeScope.scopedEnvironment(
+                    base: base,
+                    codexHome: "/nonexistent/codexbar-managed-account")
+            }
+            return CodexManagedAccountAuth.environment(base: base, account: account)
         case let .profileHome(path):
-            guard let normalizedPath = CodexHomeScope.normalizedHomePath(path) else { return nil }
+            guard let normalizedPath = CodexHomeScope.normalizedHomePath(path) else { return base }
             let configuredPaths = self.providerConfig(for: .codex)?.codexProfileHomePaths ?? []
-            return configuredPaths.contains {
+            guard configuredPaths.contains(where: {
                 CodexHomeScope.normalizedHomePath($0) == normalizedPath
-            } ? normalizedPath : nil
+            }) else {
+                return base
+            }
+            return CodexHomeScope.scopedEnvironment(base: base, codexHome: normalizedPath)
         }
     }
 }

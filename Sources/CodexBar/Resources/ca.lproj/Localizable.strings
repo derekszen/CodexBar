@@ -209,6 +209,13 @@
 "Menu content" = "Contingut del menú";
 "Merge Icons" = "Combina les icones";
 "Never prompt" = "No ho demanis mai";
+"Import ai-router Accounts" = "Importa comptes d’ai-router";
+"Imported %d ai-router Codex accounts." = "S’han importat %d comptes de Codex d’ai-router.";
+"Imported 1 ai-router Codex account." = "S’ha importat 1 compte de Codex d’ai-router.";
+"Importing ai-router…" = "Important des d’ai-router…";
+"No ai-router Codex accounts found." = "No s’han trobat comptes de Codex d’ai-router.";
+"No readable ai-router Codex accounts found." = "No s’han trobat comptes de Codex d’ai-router que es puguin llegir.";
+
 "No" = "No";
 "No Codex accounts detected yet." = "Encara no s'han detectat comptes de Codex.";
 "No JetBrains IDE detected" = "No s'ha detectat cap IDE de JetBrains";

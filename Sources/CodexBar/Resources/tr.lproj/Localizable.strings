@@ -210,6 +210,13 @@
 "Menu content" = "Menü içeriği";
 "Merge Icons" = "Simgeleri Birleştir";
 "Never prompt" = "Hiçbir zaman istem gösterme";
+"Import ai-router Accounts" = "ai-router Hesaplarını İçe Aktar";
+"Imported %d ai-router Codex accounts." = "ai-router’dan %d Codex hesabı içe aktarıldı.";
+"Imported 1 ai-router Codex account." = "ai-router’dan 1 Codex hesabı içe aktarıldı.";
+"Importing ai-router…" = "ai-router’dan içe aktarılıyor…";
+"No ai-router Codex accounts found." = "ai-router’da Codex hesabı bulunamadı.";
+"No readable ai-router Codex accounts found." = "ai-router’da okunabilir Codex hesabı bulunamadı.";
+
 "No" = "Hayır";
 "No Codex accounts detected yet." = "Henüz Codex hesabı algılanmadı.";
 "No JetBrains IDE detected" = "JetBrains IDE algılanmadı";

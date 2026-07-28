@@ -225,6 +225,13 @@
 "Menu content" = "Menyinnehåll";
 "Merge Icons" = "Slå ihop ikoner";
 "Never prompt" = "Fråga aldrig";
+"Import ai-router Accounts" = "Importera ai-router-konton";
+"Imported %d ai-router Codex accounts." = "%d Codex-konton importerades från ai-router.";
+"Imported 1 ai-router Codex account." = "1 Codex-konto importerades från ai-router.";
+"Importing ai-router…" = "Importerar från ai-router…";
+"No ai-router Codex accounts found." = "Inga Codex-konton hittades i ai-router.";
+"No readable ai-router Codex accounts found." = "Inga läsbara Codex-konton hittades i ai-router.";
+
 "No" = "Nej";
 "No Codex accounts detected yet." = "Inga Codex-konton har hittats än.";
 "No JetBrains IDE detected" = "Ingen JetBrains IDE hittades";

@@ -8,6 +8,7 @@ public struct ManagedCodexAccount: Codable, Identifiable, Sendable {
     public let workspaceLabel: String?
     public let workspaceAccountID: String?
     public let authFingerprint: String?
+    public let externalAuthFilePath: String?
     public let managedHomePath: String
     public let createdAt: TimeInterval
     public let updatedAt: TimeInterval
@@ -20,6 +21,7 @@ public struct ManagedCodexAccount: Codable, Identifiable, Sendable {
         workspaceLabel: String? = nil,
         workspaceAccountID: String? = nil,
         authFingerprint: String? = nil,
+        externalAuthFilePath: String? = nil,
         managedHomePath: String,
         createdAt: TimeInterval,
         updatedAt: TimeInterval,
@@ -31,6 +33,7 @@ public struct ManagedCodexAccount: Codable, Identifiable, Sendable {
         self.workspaceLabel = Self.normalizeWorkspaceLabel(workspaceLabel)
         self.workspaceAccountID = Self.normalizeWorkspaceAccountID(workspaceAccountID)
         self.authFingerprint = CodexAuthFingerprint.normalize(authFingerprint)
+        self.externalAuthFilePath = Self.normalizeExternalAuthFilePath(externalAuthFilePath)
         self.managedHomePath = managedHomePath
         self.createdAt = createdAt
         self.updatedAt = updatedAt
@@ -52,6 +55,13 @@ public struct ManagedCodexAccount: Codable, Identifiable, Sendable {
         return trimmed
     }
 
+    public static func normalizeExternalAuthFilePath(_ path: String?) -> String? {
+        guard let trimmed = path?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
+            return nil
+        }
+        return URL(fileURLWithPath: trimmed, isDirectory: false).standardizedFileURL.path
+    }
+
     public static func normalizeWorkspaceAccountID(_ workspaceAccountID: String?) -> String? {
         guard let trimmed = workspaceAccountID?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
             return nil
@@ -68,6 +78,7 @@ public struct ManagedCodexAccount: Codable, Identifiable, Sendable {
             workspaceLabel: container.decodeIfPresent(String.self, forKey: .workspaceLabel),
             workspaceAccountID: container.decodeIfPresent(String.self, forKey: .workspaceAccountID),
             authFingerprint: container.decodeIfPresent(String.self, forKey: .authFingerprint),
+            externalAuthFilePath: container.decodeIfPresent(String.self, forKey: .externalAuthFilePath),
             managedHomePath: container.decode(String.self, forKey: .managedHomePath),
             createdAt: container.decode(TimeInterval.self, forKey: .createdAt),
             updatedAt: container.decode(TimeInterval.self, forKey: .updatedAt),
@@ -101,6 +112,15 @@ public enum CodexAuthFingerprint {
         SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 
+    public static func fingerprint(fileURL: URL, fileManager: FileManager = .default) -> String? {
+        guard fileManager.fileExists(atPath: fileURL.path),
+              let data = try? Data(contentsOf: fileURL)
+        else {
+            return nil
+        }
+        return self.fingerprint(data: data)
+    }
+
     public static func normalize(_ fingerprint: String?) -> String? {
         guard let trimmed = fingerprint?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
               !trimmed.isEmpty
@@ -108,6 +128,61 @@ public enum CodexAuthFingerprint {
             return nil
         }
         return trimmed
+    }
+}
+
+public enum CodexManagedAccountAuth {
+    public static let authFileEnvironmentKey = "CODEX_AUTH_FILE"
+
+    public static func environment(
+        base: [String: String],
+        account: ManagedCodexAccount,
+        fileManager: FileManager = .default) -> [String: String]
+    {
+        var environment = CodexHomeScope.scopedEnvironment(
+            base: base,
+            codexHome: account.managedHomePath)
+        environment.removeValue(forKey: self.authFileEnvironmentKey)
+        if let authFileURL = self.resolvedExternalAuthFileURL(for: account, fileManager: fileManager) {
+            environment[self.authFileEnvironmentKey] = authFileURL.path
+        }
+        return environment
+    }
+
+    public static func fingerprint(
+        for account: ManagedCodexAccount,
+        fileManager: FileManager = .default) -> String?
+    {
+        if let authFileURL = self.resolvedExternalAuthFileURL(for: account, fileManager: fileManager) {
+            return CodexAuthFingerprint.fingerprint(fileURL: authFileURL, fileManager: fileManager)
+        }
+        return CodexAuthFingerprint.fingerprint(homePath: account.managedHomePath, fileManager: fileManager)
+    }
+
+    public static func resolvedExternalAuthFileURL(
+        for account: ManagedCodexAccount,
+        fileManager: FileManager = .default) -> URL?
+    {
+        guard let path = account.externalAuthFilePath else { return nil }
+        let configuredURL = URL(fileURLWithPath: path, isDirectory: false).standardizedFileURL
+        if fileManager.fileExists(atPath: configuredURL.path) {
+            return configuredURL
+        }
+
+        let parent = configuredURL.deletingLastPathComponent()
+        let alternateDirectoryName: String? = switch parent.lastPathComponent {
+        case "auths":
+            "auths.disabled"
+        case "auths.disabled":
+            "auths"
+        default:
+            nil
+        }
+        guard let alternateDirectoryName else { return nil }
+        let alternateURL = parent.deletingLastPathComponent()
+            .appendingPathComponent(alternateDirectoryName, isDirectory: true)
+            .appendingPathComponent(configuredURL.lastPathComponent, isDirectory: false)
+        return fileManager.fileExists(atPath: alternateURL.path) ? alternateURL : nil
     }
 }
 

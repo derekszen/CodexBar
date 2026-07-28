@@ -52,6 +52,7 @@
 - Menu: the compact multi-account layout now covers every stacked multi-account list — token accounts on any provider and Codex accounts (flat lists; workspace-grouped Codex lists keep their sections).
 - Menu bar: Session/Weekly/Auto pace layout tokens that render the signed pace delta (`+11%`, `-8%`, `0%`), restoring the pre-0.45 "Both" display in the layout editor (#2540, fixes #2534). Thanks @kratocz!
 - Menu bar: model-scoped weekly percentage layout token, labeled from the active carve-out while keeping the persistent editor vocabulary model-generic (#2440, addresses #2360). Thanks @lucacampanella!
+- Codex: import ai-router/CLIProxyAPI OAuth accounts into the managed account switcher, keep same-account ambient credentials deduplicated, and refresh each imported account with its own auth file.
 
 ### Fixed
 - Notion AI: `codexbar` now honors the provider's Workspace ID, manual cookie header, and `off` source instead of always auto-selecting a workspace (#2552). Thanks @n0ah37!

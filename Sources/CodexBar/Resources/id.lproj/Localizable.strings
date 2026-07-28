@@ -210,6 +210,13 @@
 "Menu content" = "Konten menu";
 "Merge Icons" = "Gabung Ikon";
 "Never prompt" = "Jangan pernah minta";
+"Import ai-router Accounts" = "Impor Akun ai-router";
+"Imported %d ai-router Codex accounts." = "%d akun Codex ai-router diimpor.";
+"Imported 1 ai-router Codex account." = "1 akun Codex ai-router diimpor.";
+"Importing ai-router…" = "Mengimpor dari ai-router…";
+"No ai-router Codex accounts found." = "Tidak ada akun Codex ai-router yang ditemukan.";
+"No readable ai-router Codex accounts found." = "Tidak ada akun Codex ai-router yang dapat dibaca.";
+
 "No" = "Tidak";
 "No Codex accounts detected yet." = "Belum ada akun Codex yang terdeteksi.";
 "No JetBrains IDE detected" = "Tidak ada JetBrains IDE terdeteksi";

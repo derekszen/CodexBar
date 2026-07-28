@@ -3,6 +3,7 @@ import Foundation
 import Testing
 @testable import CodexBar
 
+// swiftlint:disable type_body_length
 @Suite(.serialized)
 struct CodexAccountReconciliationTests {
     @MainActor
@@ -520,6 +521,45 @@ struct CodexAccountReconciliationTests {
     }
 
     @Test
+    func `matching live system account keeps imported external auth source`() {
+        let stored = ManagedCodexAccount(
+            id: UUID(),
+            email: "user@example.com",
+            providerAccountID: "account-live",
+            authFingerprint: "imported-auth",
+            externalAuthFilePath: "/tmp/ai-router/auths/codex-user@example.com-pro.json",
+            managedHomePath: "/tmp/managed-a",
+            createdAt: 1,
+            updatedAt: 2,
+            lastAuthenticatedAt: 3)
+        let live = ObservedSystemCodexAccount(
+            email: "USER@example.com",
+            authFingerprint: "ambient-auth",
+            codexHomePath: "/Users/test/.codex",
+            observedAt: Date(),
+            identity: .providerAccount(id: "account-live"))
+        let snapshot = CodexAccountReconciliationSnapshot(
+            storedAccounts: [stored],
+            activeStoredAccount: nil,
+            liveSystemAccount: live,
+            matchingStoredAccountForLiveSystemAccount: stored,
+            activeSource: .liveSystem,
+            hasUnreadableAddedAccountStore: false,
+            storedAccountRuntimeIdentities: [stored.id: .providerAccount(id: "account-live")],
+            storedAccountRuntimeEmails: [stored.id: "user@example.com"])
+
+        let resolution = CodexActiveSourceResolver.resolve(from: snapshot)
+        let projection = CodexVisibleAccountProjection.make(from: snapshot)
+
+        #expect(resolution.resolvedSource == .managedAccount(id: stored.id))
+        #expect(projection.visibleAccounts.count == 1)
+        #expect(projection.activeVisibleAccountID == "user@example.com")
+        #expect(projection.liveVisibleAccountID == "user@example.com")
+        #expect(projection.source(forVisibleAccountID: "user@example.com") == .managedAccount(id: stored.id))
+        #expect(projection.visibleAccounts.first?.authFingerprint == "imported-auth")
+    }
+
+    @Test
     func `provider account does not collapse with email only live account on same email`() throws {
         let managedHome = FileManager.default.temporaryDirectory.appendingPathComponent(
             UUID().uuidString,
@@ -886,6 +926,8 @@ struct CodexAccountReconciliationTests {
         #expect(settings.codexResolvedActiveSource == .managedAccount(id: managed.id))
     }
 }
+
+// swiftlint:enable type_body_length
 
 private struct StubSystemObserver: CodexSystemAccountObserving {
     let account: ObservedSystemCodexAccount?

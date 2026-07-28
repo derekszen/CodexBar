@@ -279,4 +279,123 @@ extension CodexAccountScopedRefreshTests {
 
         #expect(snapshotStore.load(for: [otherMember]).isEmpty)
     }
+
+    @Test
+    func `stacked refresh shows weekly usage for three ai router accounts`() async throws {
+        let settings = self.makeSettingsStore(
+            suite: "CodexAccountScopedRefreshTests-three-ai-router-accounts")
+        settings.refreshFrequency = .manual
+        settings.multiAccountMenuLayout = .stacked
+        settings.codexActiveSource = .liveSystem
+
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("codex-ai-router-three-\(UUID().uuidString)", isDirectory: true)
+        let authDirectory = root.appendingPathComponent("auths", isDirectory: true)
+        let disabledDirectory = root.appendingPathComponent("auths.disabled", isDirectory: true)
+        try FileManager.default.createDirectory(at: authDirectory, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: disabledDirectory, withIntermediateDirectories: true)
+
+        let accountFixtures = try [
+            AIRouterAccountFixture(
+                id: #require(UUID(uuidString: "11111111-AAAA-BBBB-CCCC-111111111111")),
+                email: "first@example.com",
+                accountID: "acct-first",
+                authFile: authDirectory.appendingPathComponent("codex-first@example.com-pro.json"),
+                usedPercent: 28),
+            AIRouterAccountFixture(
+                id: #require(UUID(uuidString: "22222222-AAAA-BBBB-CCCC-222222222222")),
+                email: "second@example.com",
+                accountID: "acct-second",
+                authFile: disabledDirectory.appendingPathComponent("codex-second@example.com-pro.json"),
+                usedPercent: 1),
+            AIRouterAccountFixture(
+                id: #require(UUID(uuidString: "33333333-AAAA-BBBB-CCCC-333333333333")),
+                email: "third@example.com",
+                accountID: "acct-third",
+                authFile: disabledDirectory.appendingPathComponent("codex-third@example.com-pro.json"),
+                usedPercent: 8),
+        ]
+        for fixture in accountFixtures {
+            let email = fixture.email
+            let accountID = fixture.accountID
+            let authFile = fixture.authFile
+            let json: [String: Any] = [
+                "access_token": "access-\(accountID)",
+                "refresh_token": "refresh-\(accountID)",
+                "id_token": Self.fakeJWT(email: email, plan: "pro", accountId: accountID),
+                "account_id": accountID,
+            ]
+            try JSONSerialization.data(withJSONObject: json, options: [.sortedKeys]).write(to: authFile)
+        }
+
+        let managedAccounts = accountFixtures.map { fixture in
+            ManagedCodexAccount(
+                id: fixture.id,
+                email: fixture.email,
+                providerAccountID: fixture.accountID,
+                authFingerprint: CodexAuthFingerprint.fingerprint(fileURL: fixture.authFile),
+                externalAuthFilePath: fixture.authFile.path,
+                managedHomePath: root.appendingPathComponent(fixture.id.uuidString, isDirectory: true).path,
+                createdAt: 1,
+                updatedAt: 2,
+                lastAuthenticatedAt: 2)
+        }
+        let storeURL = try self.makeManagedAccountStoreURL(accounts: managedAccounts)
+        defer {
+            settings._test_liveSystemCodexAccount = nil
+            settings._test_managedCodexAccountStoreURL = nil
+            try? FileManager.default.removeItem(at: storeURL)
+            try? FileManager.default.removeItem(at: root)
+        }
+        settings._test_managedCodexAccountStoreURL = storeURL
+        settings._test_liveSystemCodexAccount = ObservedSystemCodexAccount(
+            email: "first@example.com",
+            authFingerprint: "stale-ambient-auth",
+            codexHomePath: "/Users/test/.codex",
+            observedAt: Date(),
+            identity: .providerAccount(id: "acct-first"))
+
+        let expectedUsageByAuthPath = Dictionary(uniqueKeysWithValues: accountFixtures.map { fixture in
+            (fixture.authFile.standardizedFileURL.path, (email: fixture.email, usedPercent: fixture.usedPercent))
+        })
+        let store = self.makeUsageStore(settings: settings)
+        self.installContextualCodexProvider(on: store) { context in
+            let authPath = try #require(context.env[CodexManagedAccountAuth.authFileEnvironmentKey])
+            let expected = try #require(expectedUsageByAuthPath[authPath])
+            return UsageSnapshot(
+                primary: nil,
+                secondary: RateWindow(
+                    usedPercent: expected.usedPercent,
+                    windowMinutes: 10080,
+                    resetsAt: nil,
+                    resetDescription: nil),
+                updatedAt: Date(),
+                identity: ProviderIdentitySnapshot(
+                    providerID: .codex,
+                    accountEmail: expected.email,
+                    accountOrganization: nil,
+                    loginMethod: "pro"))
+        }
+
+        await store.refreshCodexVisibleAccountsForMenu()
+
+        #expect(settings.codexVisibleAccountProjection.visibleAccounts.count == 3)
+        #expect(store.codexAccountSnapshots.count == 3)
+        #expect(Set(store.codexAccountSnapshots.compactMap { $0.snapshot?.accountEmail(for: .codex) }) == Set(
+            accountFixtures.map(\.email)))
+        #expect(Set(store.codexAccountSnapshots.compactMap { $0.snapshot?.secondary?.usedPercent }) == [1, 8, 28])
+        let firstAccount = try #require(store.codexAccountSnapshots.first {
+            $0.account.email == "first@example.com"
+        })
+        #expect(firstAccount.account.selectionSource == .managedAccount(id: accountFixtures[0].id))
+        #expect(firstAccount.snapshot?.secondary?.usedPercent == 28)
+    }
+}
+
+private struct AIRouterAccountFixture {
+    let id: UUID
+    let email: String
+    let accountID: String
+    let authFile: URL
+    let usedPercent: Double
 }

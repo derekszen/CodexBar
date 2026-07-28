@@ -3,6 +3,7 @@ import Foundation
 import Testing
 @testable import CodexBar
 
+// swiftlint:disable type_body_length
 @Suite(.serialized)
 @MainActor
 struct ManagedCodexAccountServiceTests {
@@ -65,6 +66,140 @@ struct ManagedCodexAccountServiceTests {
         #expect(store.snapshot.accounts.count == 2)
         #expect(authenticated.email == "second@example.com")
         #expect(authenticated.providerAccountID == "account-second")
+    }
+
+    @Test
+    func `imports ai router codex auth files into managed account store`() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let managedRoot = root.appendingPathComponent("managed", isDirectory: true)
+        let authDirectory = root.appendingPathComponent("auths", isDirectory: true)
+        let disabledAuthDirectory = root.appendingPathComponent("auths.disabled", isDirectory: true)
+        try FileManager.default.createDirectory(at: authDirectory, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: disabledAuthDirectory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let activeAuth = authDirectory.appendingPathComponent("codex-alpha@example.com-pro.json", isDirectory: false)
+        let disabledAuth = disabledAuthDirectory.appendingPathComponent(
+            "codex-beta@example.com-pro.json",
+            isDirectory: false)
+        let invalidAuth = authDirectory.appendingPathComponent("codex-invalid.json", isDirectory: false)
+        try Self.writeAIRouterCodexAuth(
+            to: activeAuth,
+            accessToken: "access-alpha",
+            refreshToken: "refresh-alpha",
+            accountID: "account-alpha")
+        try Self.writeAIRouterCodexAuth(
+            to: disabledAuth,
+            accessToken: "access-beta",
+            refreshToken: "refresh-beta",
+            accountID: "account-beta")
+        try Data("{}".utf8).write(to: invalidAuth)
+
+        let store = InMemoryManagedCodexAccountStore(
+            accounts: ManagedCodexAccountSet(
+                version: FileManagedCodexAccountStore.currentVersion,
+                accounts: []))
+        let service = ManagedCodexAccountService(
+            store: store,
+            homeFactory: TestManagedCodexHomeFactory(root: managedRoot),
+            loginRunner: StubManagedCodexLoginRunner.success,
+            identityReader: StubManagedCodexIdentityReader.accounts([
+                .init(identity: .providerAccount(id: "account-alpha"), email: "alpha@example.com", plan: "Pro"),
+                .init(identity: .providerAccount(id: "account-beta"), email: "beta@example.com", plan: "Pro"),
+            ]),
+            workspaceResolver: StubManagedCodexWorkspaceResolver(identities: [
+                "account-alpha": CodexOpenAIWorkspaceIdentity(
+                    workspaceAccountID: "account-alpha",
+                    workspaceLabel: "Alpha"),
+                "account-beta": CodexOpenAIWorkspaceIdentity(
+                    workspaceAccountID: "account-beta",
+                    workspaceLabel: "Beta"),
+            ]))
+
+        let result = try await service.importAIRouterCodexAccounts(
+            authDirectory: authDirectory,
+            disabledAuthDirectory: disabledAuthDirectory)
+        let snapshot = store.snapshot
+        let alpha = try #require(snapshot.account(email: "alpha@example.com", providerAccountID: "account-alpha"))
+        let beta = try #require(snapshot.account(email: "beta@example.com", providerAccountID: "account-beta"))
+        let alphaCredentials = try CodexOAuthCredentialsStore.load(env: ["CODEX_HOME": alpha.managedHomePath])
+        let betaCredentials = try CodexOAuthCredentialsStore.load(env: ["CODEX_HOME": beta.managedHomePath])
+
+        #expect(result.scannedFileCount == 3)
+        #expect(result.skippedFileCount == 1)
+        #expect(result.importedAccounts.count == 2)
+        #expect(result.updatedAccounts.isEmpty)
+        #expect(result.preferredAccount?.id == alpha.id)
+        #expect(snapshot.accounts.count == 2)
+        #expect(alpha.workspaceLabel == "Alpha")
+        #expect(beta.workspaceLabel == "Beta")
+        #expect(alphaCredentials.accessToken == "access-alpha")
+        #expect(betaCredentials.accessToken == "access-beta")
+        #expect(alpha.externalAuthFilePath == activeAuth.standardizedFileURL.path)
+        #expect(beta.externalAuthFilePath == disabledAuth.standardizedFileURL.path)
+        #expect(FileManager.default.fileExists(atPath: activeAuth.path))
+        #expect(FileManager.default.fileExists(atPath: disabledAuth.path))
+    }
+
+    @Test
+    func `importing duplicate ai router codex files keeps only final managed home`() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let managedRoot = root.appendingPathComponent("managed", isDirectory: true)
+        let authDirectory = root.appendingPathComponent("auths", isDirectory: true)
+        let disabledAuthDirectory = root.appendingPathComponent("auths.disabled", isDirectory: true)
+        try FileManager.default.createDirectory(at: authDirectory, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: disabledAuthDirectory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let activeAuth = authDirectory.appendingPathComponent("codex-alpha@example.com-active.json", isDirectory: false)
+        let disabledAuth = disabledAuthDirectory.appendingPathComponent(
+            "codex-alpha@example.com-disabled.json",
+            isDirectory: false)
+        try Self.writeAIRouterCodexAuth(
+            to: activeAuth,
+            accessToken: "access-active",
+            refreshToken: "refresh-active",
+            accountID: "account-alpha")
+        try Self.writeAIRouterCodexAuth(
+            to: disabledAuth,
+            accessToken: "access-disabled",
+            refreshToken: "refresh-disabled",
+            accountID: "account-alpha")
+
+        let store = InMemoryManagedCodexAccountStore(
+            accounts: ManagedCodexAccountSet(
+                version: FileManagedCodexAccountStore.currentVersion,
+                accounts: []))
+        let service = ManagedCodexAccountService(
+            store: store,
+            homeFactory: TestManagedCodexHomeFactory(root: managedRoot),
+            loginRunner: StubManagedCodexLoginRunner.success,
+            identityReader: StubManagedCodexIdentityReader.accounts([
+                .init(identity: .providerAccount(id: "account-alpha"), email: "alpha@example.com", plan: "Pro"),
+                .init(identity: .providerAccount(id: "account-alpha"), email: "alpha@example.com", plan: "Pro"),
+            ]),
+            workspaceResolver: StubManagedCodexWorkspaceResolver())
+
+        let result = try await service.importAIRouterCodexAccounts(
+            authDirectory: authDirectory,
+            disabledAuthDirectory: disabledAuthDirectory)
+        let account = try #require(store.snapshot.account(
+            email: "alpha@example.com",
+            providerAccountID: "account-alpha"))
+        let credentials = try CodexOAuthCredentialsStore.load(env: ["CODEX_HOME": account.managedHomePath])
+        let firstManagedHome = managedRoot.appendingPathComponent("accounts/account-1", isDirectory: true)
+
+        #expect(result.scannedFileCount == 2)
+        #expect(result.skippedFileCount == 0)
+        #expect(result.importedAccounts.count == 1)
+        #expect(result.updatedAccounts.isEmpty)
+        #expect(store.snapshot.accounts.count == 1)
+        #expect(credentials.accessToken == "access-disabled")
+        #expect(account.managedHomePath.hasSuffix("/accounts/account-2"))
+        #expect(account.externalAuthFilePath == disabledAuth.standardizedFileURL.path)
+        #expect(FileManager.default.fileExists(atPath: firstManagedHome.path) == false)
+        #expect(FileManager.default.fileExists(atPath: activeAuth.path))
+        #expect(FileManager.default.fileExists(atPath: disabledAuth.path))
     }
 
     @Test
@@ -780,6 +915,27 @@ struct ManagedCodexAccountServiceTests {
 
         #expect(store.snapshot.accounts.isEmpty)
         #expect(FileManager.default.fileExists(atPath: outsideRoot.path))
+    }
+}
+
+// swiftlint:enable type_body_length
+
+extension ManagedCodexAccountServiceTests {
+    fileprivate static func writeAIRouterCodexAuth(
+        to url: URL,
+        accessToken: String,
+        refreshToken: String,
+        accountID: String) throws
+    {
+        let json = """
+        {
+          "access_token": "\(accessToken)",
+          "refresh_token": "\(refreshToken)",
+          "account_id": "\(accountID)",
+          "last_refresh": "2025-12-20T12:34:56Z"
+        }
+        """
+        try Data(json.utf8).write(to: url)
     }
 }
 

@@ -80,9 +80,10 @@ public struct FileManagedCodexAccountStore: ManagedCodexAccountStoring, @uncheck
                 providerAccountID: hydratedProviderAccountID,
                 workspaceLabel: account.workspaceLabel,
                 workspaceAccountID: account.workspaceAccountID,
-                authFingerprint: account.authFingerprint ?? CodexAuthFingerprint.fingerprint(
-                    homePath: account.managedHomePath,
+                authFingerprint: account.authFingerprint ?? CodexManagedAccountAuth.fingerprint(
+                    for: account,
                     fileManager: self.fileManager),
+                externalAuthFilePath: account.externalAuthFilePath,
                 managedHomePath: account.managedHomePath,
                 createdAt: account.createdAt,
                 updatedAt: account.updatedAt,
@@ -93,7 +94,7 @@ public struct FileManagedCodexAccountStore: ManagedCodexAccountStoring, @uncheck
 
     private func hydrateProviderAccountID(for account: ManagedCodexAccount) -> String? {
         guard let credentials = try? CodexOAuthCredentialsStore.load(
-            env: ["CODEX_HOME": account.managedHomePath])
+            env: CodexManagedAccountAuth.environment(base: [:], account: account, fileManager: self.fileManager))
         else {
             return nil
         }

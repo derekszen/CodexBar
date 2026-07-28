@@ -225,6 +225,13 @@
 "Menu content" = "메뉴 내용";
 "Merge Icons" = "아이콘 병합";
 "Never prompt" = "표시 안 함";
+"Import ai-router Accounts" = "ai-router 계정 가져오기";
+"Imported %d ai-router Codex accounts." = "ai-router Codex 계정 %d개를 가져왔습니다.";
+"Imported 1 ai-router Codex account." = "ai-router Codex 계정 1개를 가져왔습니다.";
+"Importing ai-router…" = "ai-router에서 가져오는 중…";
+"No ai-router Codex accounts found." = "ai-router Codex 계정을 찾을 수 없습니다.";
+"No readable ai-router Codex accounts found." = "읽을 수 있는 ai-router Codex 계정을 찾을 수 없습니다.";
+
 "No" = "아니요";
 "No Codex accounts detected yet." = "아직 감지된 Codex 계정이 없습니다.";
 "No JetBrains IDE detected" = "감지된 JetBrains IDE 없음";

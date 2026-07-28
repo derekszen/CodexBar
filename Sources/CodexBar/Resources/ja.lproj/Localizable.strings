@@ -225,6 +225,13 @@
 "Menu content" = "メニューの内容";
 "Merge Icons" = "アイコンを統合";
 "Never prompt" = "プロンプトを表示しない";
+"Import ai-router Accounts" = "ai-routerアカウントをインポート";
+"Imported %d ai-router Codex accounts." = "ai-routerのCodexアカウントを%d件インポートしました。";
+"Imported 1 ai-router Codex account." = "ai-routerのCodexアカウントを1件インポートしました。";
+"Importing ai-router…" = "ai-routerからインポート中…";
+"No ai-router Codex accounts found." = "ai-routerのCodexアカウントが見つかりませんでした。";
+"No readable ai-router Codex accounts found." = "読み取り可能なai-routerのCodexアカウントが見つかりませんでした。";
+
 "No" = "いいえ";
 "No Codex accounts detected yet." = "Codex アカウントはまだ検出されていません。";
 "No JetBrains IDE detected" = "JetBrains IDE が検出されません";

@@ -25,6 +25,7 @@ struct CodexAccountsSectionStateTests {
             isAuthenticatingManagedAccount: false,
             authenticatingManagedAccountID: nil,
             isRemovingManagedAccount: false,
+            isImportingAIRouterAccounts: false,
             isAuthenticatingLiveAccount: false,
             isPromotingSystemAccount: false,
             notice: nil)
@@ -61,6 +62,7 @@ struct CodexAccountsSectionStateTests {
             isAuthenticatingManagedAccount: false,
             authenticatingManagedAccountID: nil,
             isRemovingManagedAccount: false,
+            isImportingAIRouterAccounts: false,
             isAuthenticatingLiveAccount: false,
             isPromotingSystemAccount: false,
             notice: nil)
@@ -98,6 +100,7 @@ struct CodexAccountsSectionStateTests {
             isAuthenticatingManagedAccount: false,
             authenticatingManagedAccountID: nil,
             isRemovingManagedAccount: true,
+            isImportingAIRouterAccounts: false,
             isAuthenticatingLiveAccount: false,
             isPromotingSystemAccount: false,
             notice: nil)
@@ -126,6 +129,7 @@ struct CodexAccountsSectionStateTests {
             isAuthenticatingManagedAccount: false,
             authenticatingManagedAccountID: nil,
             isRemovingManagedAccount: false,
+            isImportingAIRouterAccounts: false,
             isAuthenticatingLiveAccount: false,
             isPromotingSystemAccount: false,
             notice: nil)
@@ -155,6 +159,7 @@ struct CodexAccountsSectionStateTests {
             isAuthenticatingManagedAccount: false,
             authenticatingManagedAccountID: nil,
             isRemovingManagedAccount: true,
+            isImportingAIRouterAccounts: false,
             isAuthenticatingLiveAccount: false,
             isPromotingSystemAccount: false,
             notice: nil)
@@ -184,6 +189,7 @@ struct CodexAccountsSectionStateTests {
             isAuthenticatingManagedAccount: false,
             authenticatingManagedAccountID: nil,
             isRemovingManagedAccount: false,
+            isImportingAIRouterAccounts: false,
             isAuthenticatingLiveAccount: false,
             isPromotingSystemAccount: true,
             notice: nil)

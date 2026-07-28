@@ -19,7 +19,13 @@ public enum CodexActiveSourceResolver {
         let persistedSource = snapshot.activeSource
         let resolvedSource: CodexActiveSource = switch persistedSource {
         case .liveSystem:
-            .liveSystem
+            if let importedAccount = snapshot.matchingStoredAccountForLiveSystemAccount,
+               importedAccount.externalAuthFilePath != nil
+            {
+                .managedAccount(id: importedAccount.id)
+            } else {
+                .liveSystem
+            }
         case let .managedAccount(id):
             if let activeStoredAccount = snapshot.activeStoredAccount {
                 self.resolvedSource(for: activeStoredAccount, snapshot: snapshot)
@@ -62,7 +68,10 @@ public enum CodexActiveSourceResolver {
         for storedAccount: ManagedCodexAccount,
         snapshot: CodexAccountReconciliationSnapshot) -> CodexActiveSource
     {
-        self.matchesLiveSystemAccount(
+        if storedAccount.externalAuthFilePath != nil {
+            return .managedAccount(id: storedAccount.id)
+        }
+        return self.matchesLiveSystemAccount(
             storedAccount: storedAccount,
             snapshot: snapshot,
             liveSystemAccount: snapshot.liveSystemAccount) ? .liveSystem : .managedAccount(id: storedAccount.id)
@@ -219,7 +228,7 @@ public struct DefaultCodexAccountReconciler: Sendable {
         profileHomePaths: [String] = [],
         managedEnvironmentBuilder: @escaping @Sendable ([String: String], ManagedCodexAccount)
             -> [String: String] = { baseEnvironment, account in
-                CodexHomeScope.scopedEnvironment(base: baseEnvironment, codexHome: account.managedHomePath)
+                CodexManagedAccountAuth.environment(base: baseEnvironment, account: account)
             })
     {
         self.storeLoader = storeLoader
@@ -454,6 +463,7 @@ private struct AccountIdentity: Equatable {
     let workspaceLabel: String?
     let workspaceAccountID: String?
     let managedHomePath: String
+    let externalAuthFilePath: String?
     let createdAt: TimeInterval
     let updatedAt: TimeInterval
     let lastAuthenticatedAt: TimeInterval?
@@ -466,6 +476,7 @@ private struct AccountIdentity: Equatable {
         self.workspaceLabel = account.workspaceLabel
         self.workspaceAccountID = account.workspaceAccountID
         self.managedHomePath = account.managedHomePath
+        self.externalAuthFilePath = account.externalAuthFilePath
         self.createdAt = account.createdAt
         self.updatedAt = account.updatedAt
         self.lastAuthenticatedAt = account.lastAuthenticatedAt

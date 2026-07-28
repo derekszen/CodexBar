@@ -14,10 +14,11 @@ final class ManagedCodexAccountCoordinator {
     private(set) var authenticatingManagedAccountID: UUID?
     private(set) var isRemovingManagedAccount: Bool = false
     private(set) var removingManagedAccountID: UUID?
+    private(set) var isImportingAIRouterAccounts: Bool = false
     var onManagedAccountsDidChange: (@MainActor () -> Void)?
 
     var hasConflictingManagedAccountOperationInFlight: Bool {
-        self.isAuthenticatingManagedAccount || self.isRemovingManagedAccount
+        self.isAuthenticatingManagedAccount || self.isRemovingManagedAccount || self.isImportingAIRouterAccounts
     }
 
     init(service: ManagedCodexAccountService = ManagedCodexAccountService()) {
@@ -57,5 +58,22 @@ final class ManagedCodexAccountCoordinator {
 
         try await self.service.removeManagedAccount(id: id)
         self.onManagedAccountsDidChange?()
+    }
+
+    func importAIRouterCodexAccounts() async throws -> ManagedCodexAIRouterImportResult {
+        guard self.hasConflictingManagedAccountOperationInFlight == false else {
+            throw ManagedCodexAccountCoordinatorError.authenticationInProgress
+        }
+
+        self.isImportingAIRouterAccounts = true
+        defer {
+            self.isImportingAIRouterAccounts = false
+        }
+
+        let result = try await self.service.importAIRouterCodexAccounts()
+        if result.affectedCount > 0 {
+            self.onManagedAccountsDidChange?()
+        }
+        return result
     }
 }

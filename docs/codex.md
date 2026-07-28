@@ -64,6 +64,14 @@ Example:
 }
 ```
 
+### ai-router Codex auth import
+- Preferences -> Providers -> Codex -> Accounts -> Import ai-router Accounts scans
+  `~/.local/share/ai-router/auths/codex-*.json` and `~/.local/share/ai-router/auths.disabled/codex-*.json`.
+- Valid ai-router/CLIProxyAPI OAuth files seed CodexBar managed Codex homes and remain linked so refreshes use the
+  matching account file even when ai-router moves it between `auths` and `auths.disabled`.
+- CodexBar does not move ai-router auth files, change ai-router's active account, or restart CLIProxyAPI. Use
+  `~/Projects/ai-router/bin/select-auth` when you want to change ai-router's own active credential pool.
+
 ### OpenAI web dashboard (optional, off by default)
 - Enable it in Preferences -> Providers -> Codex -> OpenAI web extras.
 - It exists for dashboard-only extras such as code review remaining, usage breakdown, and credits history.

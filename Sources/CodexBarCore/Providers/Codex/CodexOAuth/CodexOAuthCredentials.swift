@@ -57,7 +57,13 @@ public enum CodexOAuthCredentialsStore {
         env: [String: String] = ProcessInfo.processInfo.environment,
         fileManager: FileManager = .default) -> URL
     {
-        CodexHomeScope
+        if let rawPath = env[CodexManagedAccountAuth.authFileEnvironmentKey]?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            !rawPath.isEmpty
+        {
+            return URL(fileURLWithPath: rawPath, isDirectory: false).standardizedFileURL
+        }
+        return CodexHomeScope
             .ambientHomeURL(env: env, fileManager: fileManager)
             .appendingPathComponent("auth.json")
     }
@@ -113,16 +119,26 @@ public enum CodexOAuthCredentialsStore {
     }
 
     private static func tokenCredentials(in json: [String: Any]) -> CodexOAuthCredentials? {
-        guard let tokens = json["tokens"] as? [String: Any],
-              let accessToken = stringValue(
-                  in: tokens,
-                  snakeCaseKey: "access_token",
-                  camelCaseKey: "accessToken"),
-              let refreshToken = stringValue(
-                  in: tokens,
-                  snakeCaseKey: "refresh_token",
-                  camelCaseKey: "refreshToken"),
-              !accessToken.isEmpty
+        let tokens: [String: Any]
+        if let nestedTokens = json["tokens"] as? [String: Any] {
+            tokens = nestedTokens
+        } else if Self.stringValue(in: json, snakeCaseKey: "access_token", camelCaseKey: "accessToken") != nil ||
+            Self.stringValue(in: json, snakeCaseKey: "refresh_token", camelCaseKey: "refreshToken") != nil
+        {
+            tokens = json
+        } else {
+            return nil
+        }
+
+        guard let accessToken = stringValue(
+            in: tokens,
+            snakeCaseKey: "access_token",
+            camelCaseKey: "accessToken"),
+            let refreshToken = stringValue(
+                in: tokens,
+                snakeCaseKey: "refresh_token",
+                camelCaseKey: "refreshToken"),
+            !accessToken.isEmpty
         else {
             return nil
         }
@@ -166,19 +182,56 @@ public enum CodexOAuthCredentialsStore {
             json = existing
         }
 
-        var tokens: [String: Any] = [
-            "access_token": credentials.accessToken,
-            "refresh_token": credentials.refreshToken,
-        ]
-        if let idToken = credentials.idToken {
-            tokens["id_token"] = idToken
-        }
-        if let accountId = credentials.accountId {
-            tokens["account_id"] = accountId
-        }
+        var tokens: [String: Any] = [:]
+        Self.setStringValue(
+            credentials.accessToken,
+            in: &tokens,
+            snakeCaseKey: "access_token",
+            camelCaseKey: "accessToken")
+        Self.setStringValue(
+            credentials.refreshToken,
+            in: &tokens,
+            snakeCaseKey: "refresh_token",
+            camelCaseKey: "refreshToken")
+        Self.setOptionalStringValue(
+            credentials.idToken,
+            in: &tokens,
+            snakeCaseKey: "id_token",
+            camelCaseKey: "idToken")
+        Self.setOptionalStringValue(
+            credentials.accountId,
+            in: &tokens,
+            snakeCaseKey: "account_id",
+            camelCaseKey: "accountId")
 
-        json["tokens"] = tokens
-        json["last_refresh"] = ISO8601DateFormatter().string(from: Date())
+        let hasTopLevelTokens = json["tokens"] == nil && (
+            Self.stringValue(in: json, snakeCaseKey: "access_token", camelCaseKey: "accessToken") != nil ||
+                Self.stringValue(in: json, snakeCaseKey: "refresh_token", camelCaseKey: "refreshToken") != nil)
+        if hasTopLevelTokens {
+            Self.setStringValue(
+                credentials.accessToken,
+                in: &json,
+                snakeCaseKey: "access_token",
+                camelCaseKey: "accessToken")
+            Self.setStringValue(
+                credentials.refreshToken,
+                in: &json,
+                snakeCaseKey: "refresh_token",
+                camelCaseKey: "refreshToken")
+            Self.setOptionalStringValue(
+                credentials.idToken,
+                in: &json,
+                snakeCaseKey: "id_token",
+                camelCaseKey: "idToken")
+            Self.setOptionalStringValue(
+                credentials.accountId,
+                in: &json,
+                snakeCaseKey: "account_id",
+                camelCaseKey: "accountId")
+        } else {
+            json["tokens"] = tokens
+        }
+        json["last_refresh"] = ISO8601DateFormatter().string(from: credentials.lastRefresh ?? Date())
 
         let data = try JSONSerialization.data(withJSONObject: json, options: [.prettyPrinted, .sortedKeys])
         let directory = url.deletingLastPathComponent()
@@ -208,6 +261,37 @@ public enum CodexOAuthCredentialsStore {
             return value
         }
         return nil
+    }
+
+    private static func setStringValue(
+        _ value: String,
+        in dictionary: inout [String: Any],
+        snakeCaseKey: String,
+        camelCaseKey: String)
+    {
+        if dictionary[camelCaseKey] != nil, dictionary[snakeCaseKey] == nil {
+            dictionary[camelCaseKey] = value
+        } else {
+            dictionary[snakeCaseKey] = value
+        }
+    }
+
+    private static func setOptionalStringValue(
+        _ value: String?,
+        in dictionary: inout [String: Any],
+        snakeCaseKey: String,
+        camelCaseKey: String)
+    {
+        guard let value else {
+            dictionary.removeValue(forKey: snakeCaseKey)
+            dictionary.removeValue(forKey: camelCaseKey)
+            return
+        }
+        self.setStringValue(
+            value,
+            in: &dictionary,
+            snakeCaseKey: snakeCaseKey,
+            camelCaseKey: camelCaseKey)
     }
 }
 

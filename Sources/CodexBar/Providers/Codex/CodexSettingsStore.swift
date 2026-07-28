@@ -129,6 +129,28 @@ extension SettingsStore {
         }
     }
 
+    func managedCodexEnvironment(
+        base: [String: String],
+        forActiveSource source: CodexActiveSource) -> [String: String]?
+    {
+        guard case .managedAccount = source else { return nil }
+
+        #if DEBUG
+        if let override = CodexManagedRemoteHomeTestingOverride.homePath(for: self) {
+            return CodexHomeScope.scopedEnvironment(base: base, codexHome: override)
+        }
+        #endif
+
+        switch self.managedCodexAccountStoreState(activeSource: source) {
+        case let .selected(account):
+            return CodexManagedAccountAuth.environment(base: base, account: account)
+        case .none, .unreadable:
+            return CodexHomeScope.scopedEnvironment(
+                base: base,
+                codexHome: Self.failClosedManagedCodexHomePath())
+        }
+    }
+
     var activeManagedCodexCookieCacheScope: CookieHeaderCache.Scope? {
         switch self.managedCodexAccountStoreState() {
         case let .selected(account):
@@ -405,7 +427,7 @@ extension SettingsStore {
                 baseEnvironment: baseEnvironment,
                 profileHomePaths: self.codexProfileHomePaths,
                 managedEnvironmentBuilder: { environment, account in
-                    CodexHomeScope.scopedEnvironment(base: environment, codexHome: account.managedHomePath)
+                    CodexManagedAccountAuth.environment(base: environment, account: account)
                 })
         }
 
@@ -436,7 +458,7 @@ extension SettingsStore {
             baseEnvironment: baseEnvironment,
             profileHomePaths: self.codexProfileHomePaths,
             managedEnvironmentBuilder: { environment, account in
-                CodexHomeScope.scopedEnvironment(base: environment, codexHome: account.managedHomePath)
+                CodexManagedAccountAuth.environment(base: environment, account: account)
             })
         #else
         return DefaultCodexAccountReconciler(
@@ -444,7 +466,7 @@ extension SettingsStore {
             baseEnvironment: baseEnvironment,
             profileHomePaths: self.codexProfileHomePaths,
             managedEnvironmentBuilder: { environment, account in
-                CodexHomeScope.scopedEnvironment(base: environment, codexHome: account.managedHomePath)
+                CodexManagedAccountAuth.environment(base: environment, account: account)
             })
         #endif
     }

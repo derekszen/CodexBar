@@ -70,6 +70,25 @@ struct CodexOAuthTests {
     }
 
     @Test
+    func `parses ai router top level O auth credentials`() throws {
+        let json = """
+        {
+          "access_token": "access-token",
+          "refresh_token": "refresh-token",
+          "id_token": "id-token",
+          "account_id": "account-123",
+          "last_refresh": "2025-12-20T12:34:56Z"
+        }
+        """
+        let creds = try CodexOAuthCredentialsStore.parse(data: Data(json.utf8))
+        #expect(creds.accessToken == "access-token")
+        #expect(creds.refreshToken == "refresh-token")
+        #expect(creds.idToken == "id-token")
+        #expect(creds.accountId == "account-123")
+        #expect(creds.lastRefresh != nil)
+    }
+
+    @Test
     func `parses API key credentials`() throws {
         let json = """
         {

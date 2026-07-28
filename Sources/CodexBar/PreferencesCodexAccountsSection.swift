@@ -29,6 +29,7 @@ struct CodexAccountsSectionState: Equatable {
     let isAuthenticatingManagedAccount: Bool
     let authenticatingManagedAccountID: UUID?
     let isRemovingManagedAccount: Bool
+    let isImportingAIRouterAccounts: Bool
     let isAuthenticatingLiveAccount: Bool
     let isPromotingSystemAccount: Bool
     let notice: CodexAccountsSectionNotice?
@@ -58,8 +59,13 @@ struct CodexAccountsSectionState: Equatable {
         !self.hasUnreadableManagedAccountStore &&
             !self.isAuthenticatingManagedAccount &&
             !self.isRemovingManagedAccount &&
+            !self.isImportingAIRouterAccounts &&
             !self.isAuthenticatingLiveAccount &&
             !self.isPromotingSystemAccount
+    }
+
+    var canImportAIRouterAccounts: Bool {
+        self.canAddAccount
     }
 
     var addAccountTitle: String {
@@ -67,6 +73,10 @@ struct CodexAccountsSectionState: Equatable {
             return L("Adding Account…")
         }
         return L("Add Account")
+    }
+
+    var importAIRouterAccountsTitle: String {
+        self.isImportingAIRouterAccounts ? L("Importing ai-router…") : L("Import ai-router Accounts")
     }
 
     func showsLiveBadge(for account: CodexVisibleAccount) -> Bool {
@@ -77,6 +87,7 @@ struct CodexAccountsSectionState: Equatable {
         self.hasUnreadableManagedAccountStore ||
             self.isAuthenticatingManagedAccount ||
             self.isRemovingManagedAccount ||
+            self.isImportingAIRouterAccounts ||
             self.isAuthenticatingLiveAccount ||
             self.isPromotingSystemAccount
     }
@@ -91,6 +102,7 @@ struct CodexAccountsSectionState: Equatable {
         guard account.canReauthenticate else { return false }
         guard self.isAuthenticatingManagedAccount == false else { return false }
         guard self.isRemovingManagedAccount == false else { return false }
+        guard self.isImportingAIRouterAccounts == false else { return false }
         guard self.isAuthenticatingLiveAccount == false else { return false }
         guard self.isPromotingSystemAccount == false else { return false }
         if account.storedAccountID != nil {
@@ -103,6 +115,7 @@ struct CodexAccountsSectionState: Equatable {
         guard account.canRemove else { return false }
         guard self.isAuthenticatingManagedAccount == false else { return false }
         guard self.isRemovingManagedAccount == false else { return false }
+        guard self.isImportingAIRouterAccounts == false else { return false }
         guard self.isAuthenticatingLiveAccount == false else { return false }
         guard self.isPromotingSystemAccount == false else { return false }
         return self.hasUnreadableManagedAccountStore == false
@@ -130,6 +143,7 @@ struct CodexAccountsSectionView: View {
     let removeAccount: (CodexVisibleAccount) -> Void
     let requestSystemVisibleAccount: (String) -> Void
     let addAccount: () -> Void
+    let importAIRouterAccounts: () -> Void
 
     var body: some View {
         Section {
@@ -206,12 +220,21 @@ struct CodexAccountsSectionView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            Button(self.state.addAccountTitle) {
-                self.addAccount()
+            HStack(spacing: 8) {
+                Button(self.state.addAccountTitle) {
+                    self.addAccount()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(self.state.canAddAccount == false)
+
+                Button(self.state.importAIRouterAccountsTitle) {
+                    self.importAIRouterAccounts()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(self.state.canImportAIRouterAccounts == false)
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .disabled(self.state.canAddAccount == false)
         } header: {
             Text(L("Accounts"))
         }

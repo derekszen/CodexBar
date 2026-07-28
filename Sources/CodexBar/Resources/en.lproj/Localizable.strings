@@ -109,6 +109,10 @@
 "Could not switch system account" = "Could not switch system account";
 "Credits" = "Credits";
 "Individual credits" = "Individual credits";
+"Import ai-router Accounts" = "Import ai-router Accounts";
+"Imported %d ai-router Codex accounts." = "Imported %d ai-router Codex accounts.";
+"Imported 1 ai-router Codex account." = "Imported 1 ai-router Codex account.";
+"Importing ai-router…" = "Importing ai-router…";
 "Workspace" = "Workspace";
 "Credits history" = "Credits history";
 "Cursor login failed" = "Cursor login failed";
@@ -189,12 +193,14 @@
 "Never prompt" = "Never prompt";
 "No" = "No";
 "No Codex accounts detected yet." = "No Codex accounts detected yet.";
+"No ai-router Codex accounts found." = "No ai-router Codex accounts found.";
 "No JetBrains IDE detected" = "No JetBrains IDE detected";
 "No cost history data." = "No cost history data.";
 "No data available" = "No data available";
 "No data yet" = "No data yet";
 "No enabled providers available for Overview." = "No enabled providers available for Overview.";
 "No providers selected" = "No providers selected";
+"No readable ai-router Codex accounts found." = "No readable ai-router Codex accounts found.";
 "No token accounts yet." = "No token accounts yet.";
 "No usage breakdown data." = "No usage breakdown data.";
 "None" = "None";

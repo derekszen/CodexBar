@@ -119,6 +119,7 @@ extension CodexVisibleAccountProjection {
                 authFingerprint: storedAccount.authFingerprint,
                 storedAccountID: storedAccount.id,
                 selectionSource: .managedAccount(id: storedAccount.id),
+                prefersManagedSource: storedAccount.externalAuthFilePath != nil,
                 isLive: false,
                 canReauthenticate: true,
                 canRemove: true,
@@ -137,13 +138,16 @@ extension CodexVisibleAccountProjection {
                     email: existingDraft.email,
                     workspaceLabel: liveWorkspaceLabel ?? existingDraft.workspaceLabel,
                     workspaceAccountID: liveSystemAccount.workspaceAccountID ?? existingDraft.workspaceAccountID,
-                    authFingerprint: liveSystemAccount.authFingerprint ?? existingDraft.authFingerprint,
+                    authFingerprint: existingDraft.prefersManagedSource
+                        ? existingDraft.authFingerprint
+                        : liveSystemAccount.authFingerprint ?? existingDraft.authFingerprint,
                     storedAccountID: existingDraft.storedAccountID,
-                    selectionSource: .liveSystem,
+                    selectionSource: existingDraft.prefersManagedSource ? existingDraft.selectionSource : .liveSystem,
+                    prefersManagedSource: existingDraft.prefersManagedSource,
                     isLive: true,
                     canReauthenticate: existingDraft.canReauthenticate,
                     canRemove: existingDraft.canRemove,
-                    identity: liveIdentity)
+                    identity: existingDraft.prefersManagedSource ? existingDraft.identity : liveIdentity)
             } else if let existingIndex = drafts.firstIndex(where: { draft in
                 CodexIdentityMatcher.matches(
                     draft.identity,
@@ -157,13 +161,16 @@ extension CodexVisibleAccountProjection {
                     email: existingDraft.email,
                     workspaceLabel: liveWorkspaceLabel ?? existingDraft.workspaceLabel,
                     workspaceAccountID: liveSystemAccount.workspaceAccountID ?? existingDraft.workspaceAccountID,
-                    authFingerprint: liveSystemAccount.authFingerprint ?? existingDraft.authFingerprint,
+                    authFingerprint: existingDraft.prefersManagedSource
+                        ? existingDraft.authFingerprint
+                        : liveSystemAccount.authFingerprint ?? existingDraft.authFingerprint,
                     storedAccountID: existingDraft.storedAccountID,
-                    selectionSource: .liveSystem,
+                    selectionSource: existingDraft.prefersManagedSource ? existingDraft.selectionSource : .liveSystem,
+                    prefersManagedSource: existingDraft.prefersManagedSource,
                     isLive: true,
                     canReauthenticate: existingDraft.canReauthenticate,
                     canRemove: existingDraft.canRemove,
-                    identity: liveIdentity)
+                    identity: existingDraft.prefersManagedSource ? existingDraft.identity : liveIdentity)
             } else {
                 drafts.append(VisibleAccountDraft(
                     email: normalizedEmail,
@@ -172,6 +179,7 @@ extension CodexVisibleAccountProjection {
                     authFingerprint: liveSystemAccount.authFingerprint,
                     storedAccountID: nil,
                     selectionSource: .liveSystem,
+                    prefersManagedSource: false,
                     isLive: true,
                     canReauthenticate: true,
                     canRemove: false,
@@ -198,6 +206,7 @@ extension CodexVisibleAccountProjection {
                 authFingerprint: profileAccount.authFingerprint,
                 storedAccountID: nil,
                 selectionSource: .profileHome(path: profilePath),
+                prefersManagedSource: false,
                 isLive: false,
                 canReauthenticate: false,
                 canRemove: false,
@@ -280,6 +289,7 @@ private struct VisibleAccountDraft {
     let authFingerprint: String?
     let storedAccountID: UUID?
     let selectionSource: CodexActiveSource
+    let prefersManagedSource: Bool
     let isLive: Bool
     let canReauthenticate: Bool
     let canRemove: Bool

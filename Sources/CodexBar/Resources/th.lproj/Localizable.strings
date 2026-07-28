@@ -210,6 +210,13 @@
 "Menu content" = "เนื้อหาเมนู";
 "Merge Icons" = "ผสานไอคอน";
 "Never prompt" = "ไม่เคยแจ้ง";
+"Import ai-router Accounts" = "นำเข้าบัญชี ai-router";
+"Imported %d ai-router Codex accounts." = "นำเข้าบัญชี Codex จาก ai-router แล้ว %d บัญชี";
+"Imported 1 ai-router Codex account." = "นำเข้าบัญชี Codex จาก ai-router แล้ว 1 บัญชี";
+"Importing ai-router…" = "กำลังนำเข้าจาก ai-router…";
+"No ai-router Codex accounts found." = "ไม่พบบัญชี Codex ใน ai-router";
+"No readable ai-router Codex accounts found." = "ไม่พบบัญชี Codex ที่อ่านได้ใน ai-router";
+
 "No" = "ไม่";
 "No Codex accounts detected yet." = "ยังไม่พบบัญชี Codex";
 "No JetBrains IDE detected" = "ไม่พบ JetBrains IDE";

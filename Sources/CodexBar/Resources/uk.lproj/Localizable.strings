@@ -225,6 +225,13 @@
 "Menu content" = "Зміст меню";
 "Merge Icons" = "Злиття значків";
 "Never prompt" = "Ніколи не підказуйте";
+"Import ai-router Accounts" = "Імпортувати облікові записи ai-router";
+"Imported %d ai-router Codex accounts." = "Імпортовано облікових записів Codex з ai-router: %d.";
+"Imported 1 ai-router Codex account." = "Імпортовано 1 обліковий запис Codex з ai-router.";
+"Importing ai-router…" = "Імпорт з ai-router…";
+"No ai-router Codex accounts found." = "Облікові записи Codex в ai-router не знайдено.";
+"No readable ai-router Codex accounts found." = "Не знайдено доступних для читання облікових записів Codex в ai-router.";
+
 "No" = "Ні";
 "No Codex accounts detected yet." = "Облікових записів Codex ще не виявлено.";
 "No JetBrains IDE detected" = "JetBrains IDE не виявлено";
